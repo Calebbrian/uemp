@@ -39,7 +39,16 @@ auditRouter.get('/', async (req, res) => {
     entityType: q.entityType,
     entityId: q.entityId,
     createdAt: q.from || to ? { gte: q.from ? new Date(q.from) : undefined, lte: to } : undefined,
-    ...(q.q ? { summary: { contains: q.q, mode: 'insensitive' } } : {}),
+    ...(q.q
+      ? {
+          OR: [
+            { summary: { contains: q.q, mode: 'insensitive' } },
+            { actor: { firstName: { contains: q.q, mode: 'insensitive' } } },
+            { actor: { lastName: { contains: q.q, mode: 'insensitive' } } },
+            { actor: { email: { contains: q.q, mode: 'insensitive' } } },
+          ],
+        }
+      : {}),
   };
   const include = { actor: true, department: true } satisfies Prisma.AuditLogInclude;
   const format = (e: Prisma.AuditLogGetPayload<{ include: typeof include }>) => ({

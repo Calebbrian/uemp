@@ -17,11 +17,18 @@ async function assignedOfferings(lecturerId: string, semesterId: string) {
     where: { semesterId, allocations: { some: { lecturerId } } },
     include: {
       course: { include: { department: true } },
-      resultSheet: true,
+      resultSheet: { include: { reviewedBy: true } },
+      allocations: { include: { lecturer: { include: { user: true } } } },
       _count: { select: { enrollments: true } },
     },
     orderBy: { course: { code: 'asc' } },
   });
+  const graded = await prisma.enrollment.groupBy({
+    by: ['offeringId'],
+    where: { offeringId: { in: offerings.map((o) => o.id) }, result: { totalScore: { not: null } } },
+    _count: { _all: true },
+  });
+  const gradedCount = new Map(graded.map((g) => [g.offeringId, g._count._all]));
   return offerings.map((o) => ({
     id: o.id,
     code: o.course.code,
@@ -30,10 +37,14 @@ async function assignedOfferings(lecturerId: string, semesterId: string) {
     level: o.course.level,
     department: o.course.department.code,
     students: o._count.enrollments,
+    graded: gradedCount.get(o.id) ?? 0,
+    coLecturers: o.allocations.filter((a) => a.lecturerId !== lecturerId).map((a) => fullName(a.lecturer.user)),
     status: o.resultSheet?.status ?? 'DRAFT',
     reviewComment: o.resultSheet?.reviewComment ?? null,
+    reviewedBy: o.resultSheet?.reviewedBy ? fullName(o.resultSheet.reviewedBy) : null,
     reviewedAt: o.resultSheet?.reviewedAt ?? null,
     submittedAt: o.resultSheet?.submittedAt ?? null,
+    updatedAt: o.resultSheet?.updatedAt ?? null,
   }));
 }
 

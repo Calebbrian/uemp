@@ -167,7 +167,10 @@ offeringsRouter.put('/:id/lecturers', requirePermission('offerings.manage'), asy
       entityId: offering.id,
       departmentId: offering.course.departmentId,
       summary: `${offering.course.code}: ${lecturers.map((l) => fullName(l.user)).join(', ') || 'no lecturers'}`,
-      metadata: { before: offering.allocations.map((a) => a.lecturerId), after: ids },
+      metadata: {
+        before: offering.allocations.map((a) => fullName(a.lecturer.user)),
+        after: lecturers.map((l) => fullName(l.user)),
+      },
       ip: clientIp(req),
     });
     return tx.courseOffering.findUniqueOrThrow({ where: { id: offering.id }, include });

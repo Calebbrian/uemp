@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { createApp } from '../src/app';
 import { prisma } from '../src/db';
-import { DEMO_PASSWORD, seed } from '../prisma/seed';
+import { DEMO_PASSWORD, seed } from '../src/seed/demo-data';
 
 export const app = createApp();
 

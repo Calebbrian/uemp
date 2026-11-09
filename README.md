@@ -75,6 +75,7 @@ Open <http://localhost:5173> and sign in with any demo account above.
 | `PORT` | API port | `4000` |
 | `NODE_ENV` | `production` enables secure cookies and trusts the proxy | `development` |
 | `SESSION_TTL_HOURS` | Session lifetime | `8` |
+| `SEED_DEMO_DATA` | `true` loads the demo data on startup if the database has no users | unset |
 
 ### Scripts
 
@@ -101,11 +102,11 @@ npm test
 The repository deploys to Railway as one service (see `railway.json`):
 
 1. Create a Railway project with a PostgreSQL database and a service from this repository.
-2. Set `DATABASE_URL` to the database's connection URL, and set `NODE_ENV=production`.
+2. Set `DATABASE_URL` to the database's connection URL, `NODE_ENV=production` and `SEED_DEMO_DATA=true`.
 3. Deploy. The build runs `npm run build`; the start command applies migrations, then starts the server.
-4. Load the demo data once: `railway ssh` into the service and run `npm run db:seed`.
+4. On first boot with an empty database, `SEED_DEMO_DATA=true` loads the demo data. It never runs over existing data.
 
-Running the seed again at any time resets the demo data.
+To reset the demo data later, run `npm run db:seed` against the database (for example from `railway ssh`).
 
 ## Project structure
 

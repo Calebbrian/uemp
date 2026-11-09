@@ -1,6 +1,13 @@
 import { createApp } from './app';
 import { config } from './config';
 import { prisma } from './db';
+import { seed } from './seed/demo-data';
+
+// Demo deployments: load the demo dataset on first boot, but never over existing data.
+if (process.env.SEED_DEMO_DATA === 'true' && (await prisma.user.count()) === 0) {
+  console.log('Empty database: loading demo data');
+  await seed(prisma, (m) => console.log(`  ${m}`));
+}
 
 const app = createApp();
 

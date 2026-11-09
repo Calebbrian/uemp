@@ -63,7 +63,7 @@ Route handlers stay thin: they validate input, check permissions, and call a ser
 - Sessions expire after 8 hours (`SESSION_TTL_HOURS`).
 - On every request the session is looked up and the user's status checked. **Suspending or deactivating a user takes effect immediately**: their sessions are deleted, and any request they make is treated as signed out. This immediate revocation is the main reason for server-side sessions over stateless JWTs.
 - Logout deletes the session row. Changing a password signs out the user's other sessions.
-- Login attempts are rate-limited (10 failures per 15 minutes per IP).
+- Failed logins are rate-limited: 10 per account and 100 per network address in 15 minutes, so one person's typos on a shared connection do not lock other users out.
 - After login the API returns the user's role, and the frontend redirects to that role's home. The frontend guard is for navigation only. Every API request is authorised again on the server.
 
 ## 5. Permission logic
@@ -168,7 +168,7 @@ Department admins see their own department's log; the super admin sees everythin
 | Passwords | bcrypt, cost 12; minimum 8 characters with letters and numbers; new accounts get a random one-time password shown once to the admin |
 | Sessions | Random 256-bit tokens, stored hashed; `HttpOnly`, `SameSite=Lax`, `Secure` cookies; 8-hour expiry; immediate revocation on suspend, deactivate or role change |
 | CSRF | `SameSite=Lax` cookies plus a required `X-Requested-With` header on every state-changing request (browsers will not add it to a cross-site form post) |
-| Brute force | Rate limit on login; identical response for unknown email and wrong password, with equal timing |
+| Brute force | Rate limits on failed logins per account and per network; identical response for unknown email and wrong password, with equal timing |
 | Authorisation | Permission check and data scope on every endpoint; no client-supplied ids trusted for "own" data |
 | Input | Zod validation on every body and query; database check constraints as a second line |
 | Concurrency | Serializable transaction for registration; row locks on result sheets |
@@ -180,10 +180,10 @@ The API returns errors as `{ error: { code, message, details } }` with the right
 
 ## 12. Testing
 
-`npm test` runs 56 tests against a separate test database:
+`npm test` runs 58 tests against a separate test database:
 
 - **Unit** – grading bands, GPA, class of degree, scale validation.
-- **Authentication** – login, identical failure responses, suspended accounts, CSRF header, logout invalidation, immediate sign-out on suspension, hashed tokens.
+- **Authentication** – login, identical failure responses, suspended accounts, CSRF header, logout invalidation, immediate sign-out on suspension, rate limiting, hashed tokens.
 - **Access control** – a matrix of endpoints × roles, anonymous access, department scoping (a department admin asking for another department's data still gets only their own), cross-department edits, lecturer allocation.
 - **Workflows** – registration rules and duplicate prevention, the full draft → submitted → approved flow, rejection and resubmission, cross-department approval attempts, the super admin's inability to approve, reopening, and audit immutability.
 

@@ -95,7 +95,7 @@ Open <http://localhost:5173> and sign in with any demo account above.
 npm test
 ```
 
-56 tests cover authentication, the role × endpoint access matrix, department scoping, registration rules, the full result approval workflow and the audit trail. See [docs/TECHNICAL.md §12](docs/TECHNICAL.md#12-testing).
+58 tests cover authentication, the role × endpoint access matrix, department scoping, registration rules, the full result approval workflow and the audit trail. See [docs/TECHNICAL.md §12](docs/TECHNICAL.md#12-testing).
 
 ## Deployment
 

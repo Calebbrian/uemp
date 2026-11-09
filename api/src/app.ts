@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Prisma } from '@prisma/client';
@@ -69,6 +70,7 @@ export function createApp() {
       },
     }),
   );
+  app.use(compression());
   app.use(express.json({ limit: '200kb' }));
   app.use(cookieParser());
 

@@ -7,7 +7,7 @@ A web portal for running a university's academic records: students register for 
 
 ## Live demo
 
-**URL:** _added after deployment_
+**URL:** <https://uemp.up.railway.app>
 
 All demo accounts use the password **`Password@123`**. The login page also lists them with a one-click "Use this account" button.
 

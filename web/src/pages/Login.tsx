@@ -4,6 +4,7 @@ import { Eye, EyeOff, GraduationCap, TriangleAlert } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { ROLE_HOME } from '../lib/format';
+import type { Me } from '../lib/types';
 import { Button, cx } from '../components/ui/primitives';
 
 const DEMO_PASSWORD = 'Password@123';
@@ -27,7 +28,14 @@ export function LoginPage() {
   const [error, setError] = useState<{ text: string; tone: 'error' | 'warning' } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (user) return <Navigate to={ROLE_HOME[user.role]} replace />;
+  // Only follow ?next= into the signed-in user's own area.
+  const destination = (role: Me['role']) => {
+    const home = ROLE_HOME[role];
+    const next = params.get('next');
+    return next && (next === home || next.startsWith(`${home}/`)) ? next : home;
+  };
+
+  if (user) return <Navigate to={destination(user.role)} replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -39,11 +47,11 @@ export function LoginPage() {
     setError(null);
     try {
       const me = await signIn(email.trim(), password);
-      const next = params.get('next');
-      navigate(next && next.startsWith(ROLE_HOME[me.role]) ? next : ROLE_HOME[me.role], { replace: true });
+      navigate(destination(me.role), { replace: true });
     } catch (err) {
       const rateLimited = err instanceof ApiError && err.status === 429;
-      setError({ text: err instanceof Error ? err.message : 'Sign in failed.', tone: rateLimited ? 'warning' : 'error' });
+      const fieldMessage = err instanceof ApiError ? Object.values(err.fields)[0] : undefined;
+      setError({ text: fieldMessage ?? (err instanceof Error ? err.message : 'Sign in failed.'), tone: rateLimited ? 'warning' : 'error' });
     } finally {
       setBusy(false);
     }
@@ -51,7 +59,7 @@ export function LoginPage() {
 
   return (
     <div className="flex min-h-dvh flex-wrap bg-surface">
-      <section className="flex flex-[1_1_420px] flex-col justify-between gap-10 bg-brand px-6 py-10 text-white sm:px-[clamp(24px,5vw,72px)] sm:py-14">
+      <section className="flex min-w-0 flex-[1_1_420px] flex-col justify-between gap-10 bg-brand px-6 py-10 text-white sm:px-[clamp(24px,5vw,72px)] sm:py-14">
         <div className="flex items-center gap-3">
           <span className="flex size-11 items-center justify-center rounded-[10px] bg-white text-brand">
             <GraduationCap className="size-6" aria-hidden />
@@ -67,7 +75,7 @@ export function LoginPage() {
         <p className="m-0 text-[13px] text-[#B9D6C5]">Secure access for students, lecturers and administrators.</p>
       </section>
 
-      <main className="flex flex-[999_1_520px] items-center justify-center px-4 py-12">
+      <main className="flex min-w-0 flex-[999_1_520px] items-center justify-center px-4 py-12">
         <div className="flex w-full max-w-[440px] flex-col gap-6">
           <div className="flex flex-col gap-1.5">
             <h2 className="m-0 text-2xl font-semibold">Sign in</h2>

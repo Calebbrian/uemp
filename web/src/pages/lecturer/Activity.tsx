@@ -4,6 +4,8 @@ import type { HistoryEntry } from '../../lib/types';
 import { Banner, PageHeader, Spinner } from '../../components/ui/primitives';
 import { SheetHistory } from '../../components/results';
 
+const SIGN_IN_ACTIONS = ['LOGIN', 'LOGOUT', 'LOGIN_FAILED'];
+
 export function LecturerActivityPage() {
   const { data, isPending, error } = useQuery({
     queryKey: ['lecturer', 'activity'],
@@ -17,7 +19,7 @@ export function LecturerActivityPage() {
       ) : error ? (
         <Banner kind="error" title="We couldn’t load your activity.">{error.message}</Banner>
       ) : (
-        <SheetHistory history={data.items} />
+        <SheetHistory history={data.items.filter((h) => !SIGN_IN_ACTIONS.includes(h.action))} />
       )}
     </>
   );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Lock, Printer } from 'lucide-react';
 import { api, ApiError } from '../../lib/api';
@@ -39,6 +39,15 @@ export function CourseRegistrationPage() {
   });
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['student'] });
+  // Blocks a second request from a fast double-click before the button disables.
+  const inFlight = useRef(false);
+  const once = (fn: () => Promise<unknown>) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    fn().finally(() => {
+      inFlight.current = false;
+    });
+  };
 
   const register = useMutation({
     mutationFn: (offeringIds: string[]) => api.post<{ registered: string[]; totalUnits: number }>('/student/registration', { offeringIds }),
@@ -61,6 +70,7 @@ export function CourseRegistrationPage() {
     onSuccess: (res) => {
       toast.success(`${res.dropped} dropped`);
       setDropping(null);
+      setDone(null);
       refresh();
     },
     onError: (err) => {
@@ -313,7 +323,7 @@ export function CourseRegistrationPage() {
             <Button variant="secondary" onClick={() => setConfirming(false)} disabled={register.isPending}>
               Cancel
             </Button>
-            <Button onClick={() => register.mutate(selected)} loading={register.isPending}>
+            <Button onClick={() => once(() => register.mutateAsync(selected).catch(() => undefined))} loading={register.isPending}>
               Confirm registration
             </Button>
           </>
@@ -341,7 +351,7 @@ export function CourseRegistrationPage() {
       <ConfirmDialog
         open={!!dropping}
         onClose={() => setDropping(null)}
-        onConfirm={() => dropping && drop.mutate(dropping.enrollmentId)}
+        onConfirm={() => dropping && once(() => drop.mutateAsync(dropping.enrollmentId).catch(() => undefined))}
         title={`Drop ${dropping?.code ?? ''}?`}
         message={
           <>

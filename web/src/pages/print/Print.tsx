@@ -168,7 +168,17 @@ export function PrintResultsPage() {
       {semesters.map((s) => (
         <section key={s.semester.id} aria-label={s.semester.label} className="flex break-inside-avoid flex-col gap-1.5">
           <h2 className="m-0 text-[15px] font-bold">{s.semester.label}</h2>
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-[13%]" />
+              <col />
+              <col className="w-[9%]" />
+              <col className="w-[8%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[9%]" />
+              <col className="w-[7%]" />
+            </colgroup>
             <thead>
               <tr>
                 {['Code', 'Title', 'Units', 'CA', 'Exam', 'Total', 'Grade', 'GP'].map((h, i) => (

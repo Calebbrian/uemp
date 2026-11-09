@@ -48,7 +48,7 @@ export function ResultsPage() {
           <span className="num text-lg font-semibold">{data.unitsPassed}</span>
         </div>
         <div className="flex flex-col gap-0.5">
-          <span className="text-[13px] font-medium text-muted">Semesters completed</span>
+          <span className="text-[13px] font-medium text-muted">Semesters with results</span>
           <span className="num text-lg font-semibold">{completed}</span>
         </div>
       </Card>

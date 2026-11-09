@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Link, useBlocker, useParams } from 'react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
@@ -129,6 +129,7 @@ export function ScoreSheetPage() {
     },
     onSuccess: (sheet) => {
       setConfirming(false);
+      setSavedAt(null);
       if (sheet) {
         applySheet(sheet);
         toast.success('Submitted for approval', 'Scores are now locked until the department reviews them.');
@@ -140,6 +141,18 @@ export function ScoreSheetPage() {
       toast.error('Couldn’t submit', missing ? `${err.message} ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? '…' : ''}` : err.message);
     },
   });
+
+  // Blocks a second request from a fast double-click before the button disables.
+  const inFlight = useRef(false);
+  const once = (fn: () => Promise<unknown>) => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    fn()
+      .catch(() => undefined)
+      .finally(() => {
+        inFlight.current = false;
+      });
+  };
 
   const setCell = (id: string, field: 'ca' | 'exam', value: string) => {
     setSavedAt(null);
@@ -189,14 +202,14 @@ export function ScoreSheetPage() {
               <span className="size-2 rounded-full bg-[#C77700]" /> Unsaved changes
             </span>
           )}
-          {!dirty && savedAt && (
+          {!dirty && !locked && savedAt && (
             <span role="status" className="text-[13px] font-semibold text-ok-fg">
               Draft saved just now
             </span>
           )}
           {!locked && (
             <>
-              <Button variant="secondary" onClick={() => (invalid ? toast.error('Fix the highlighted scores first') : save.mutate())} disabled={!dirty} loading={save.isPending && !submit.isPending}>
+              <Button variant="secondary" onClick={() => (invalid ? toast.error('Fix the highlighted scores first') : once(() => save.mutateAsync()))} disabled={!dirty} loading={save.isPending && !submit.isPending}>
                 Save draft
               </Button>
               <Button onClick={() => setConfirming(true)} disabled={cantSubmit}>
@@ -299,7 +312,7 @@ export function ScoreSheetPage() {
       <ConfirmDialog
         open={confirming}
         onClose={() => setConfirming(false)}
-        onConfirm={() => submit.mutate()}
+        onConfirm={() => once(() => submit.mutateAsync())}
         title={`Submit ${offering.course.code} for approval?`}
         message={
           <>

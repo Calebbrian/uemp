@@ -149,7 +149,13 @@ export function SheetHistory({ history }: { history: HistoryEntry[] }) {
                       <ul className="num m-0 mt-2 flex list-none flex-col gap-1 p-0 text-ink-2">
                         {changes.map((c, i) => (
                           <li key={i}>
-                            <span className="font-medium">{c.matricNo}</span>: CA {show(c.before.ca)} → {show(c.after.ca)}, Exam {show(c.before.exam)} → {show(c.after.exam)}
+                            <span className="font-medium">{c.matricNo}</span>:{' '}
+                            {[
+                              c.before.ca !== c.after.ca && `CA ${show(c.before.ca)} → ${show(c.after.ca)}`,
+                              c.before.exam !== c.after.exam && `Exam ${show(c.before.exam)} → ${show(c.after.exam)}`,
+                            ]
+                              .filter(Boolean)
+                              .join(', ')}
                           </li>
                         ))}
                       </ul>

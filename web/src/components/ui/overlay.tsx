@@ -3,6 +3,20 @@ import { Check, Copy, X } from 'lucide-react';
 import { Button, cx, IconButton } from './primitives';
 import { TextAreaField, TextField } from './form';
 
+/**
+ * Ignores a repeat call that arrives before the first click has re-rendered the
+ * button as busy (a fast double-click would otherwise submit twice).
+ */
+function useOncePerClick() {
+  const last = useRef(0);
+  return () => {
+    const now = Date.now();
+    if (now - last.current < 1000) return false;
+    last.current = now;
+    return true;
+  };
+}
+
 /** Native <dialog> gives focus trapping, Escape to close and an inert background for free. */
 function useDialog(open: boolean, onClose: () => void) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -37,6 +51,7 @@ type DrawerProps = {
 
 export function Drawer({ open, onClose, title, children, footer, onSubmit, width = 440 }: DrawerProps) {
   const ref = useDialog(open, onClose);
+  const firstClick = useOncePerClick();
   const Body = onSubmit ? 'form' : 'div';
   return (
     <dialog
@@ -52,7 +67,7 @@ export function Drawer({ open, onClose, title, children, footer, onSubmit, width
             onSubmit
               ? (e: FormEvent) => {
                   e.preventDefault();
-                  onSubmit(e);
+                  if (firstClick()) onSubmit(e);
                 }
               : undefined
           }
@@ -111,6 +126,7 @@ type ConfirmProps = {
 export function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel, danger, loading, comment, error }: ConfirmProps) {
   const [text, setText] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const firstClick = useOncePerClick();
   useEffect(() => {
     if (open) {
       setText('');
@@ -124,7 +140,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
       setLocalError(comment.requiredMessage ?? `Please write at least ${min} characters.`);
       return;
     }
-    onConfirm(text.trim());
+    if (firstClick()) onConfirm(text.trim());
   };
 
   const Comment = comment?.multiline === false ? TextField : TextAreaField;

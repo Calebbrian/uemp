@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { CalendarDays, ChevronDown, GraduationCap, Lock, LogOut, Menu, X } from 'lucide-react';
 import { api } from '../../lib/api';
@@ -23,7 +23,7 @@ export function useCurrentSemester() {
 
 function Logo({ to }: { to: string }) {
   return (
-    <NavLink to={to} className="flex items-center gap-2.5 px-1.5 text-ink! no-underline">
+    <Link to={to} className="flex items-center gap-2.5 px-1.5 text-ink! no-underline">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand text-white">
         <GraduationCap className="size-5" aria-hidden />
       </span>
@@ -31,7 +31,7 @@ function Logo({ to }: { to: string }) {
         <span className="text-base font-bold tracking-[0.02em]">UEMP</span>
         <span className="text-[11px] leading-[14px] text-muted">University Education Management Portal</span>
       </span>
-    </NavLink>
+    </Link>
   );
 }
 
@@ -228,6 +228,15 @@ export function AppShell() {
   }, [crumb]);
 
   useEffect(() => setMenuOpen(false), [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
 
   return (
     <div className="flex min-h-dvh">

@@ -56,7 +56,7 @@ export function DataTable<T>({ columns, rows, rowKey, loading, error, onRetry, e
           />
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full border-collapse text-sm" aria-busy={loading || undefined}>
             {caption && <caption className="sr-only">{caption}</caption>}
             <thead>

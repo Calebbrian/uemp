@@ -29,34 +29,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     retry: false,
   });
 
+  /** Drops every cached response except the current user, so nothing leaks between accounts. */
+  const clearUserData = useCallback(
+    () => queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' }),
+    [queryClient],
+  );
+
   // Any 401 from the API (expired or revoked session) signs the UI out.
   useEffect(() => {
     const handle = () => {
       queryClient.setQueryData(['me'], null);
-      queryClient.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
+      clearUserData();
     };
     window.addEventListener(UNAUTHORIZED_EVENT, handle);
     return () => window.removeEventListener(UNAUTHORIZED_EVENT, handle);
-  }, [queryClient]);
+  }, [queryClient, clearUserData]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
       const { user } = await api.post<{ user: Me }>('/auth/login', { email, password });
-      queryClient.clear();
+      // Keep the ['me'] query itself: clearing it would detach the observer above.
+      clearUserData();
       queryClient.setQueryData(['me'], user);
       return user;
     },
-    [queryClient],
+    [queryClient, clearUserData],
   );
 
   const signOut = useCallback(async () => {
     try {
       await api.post('/auth/logout');
     } finally {
-      queryClient.clear();
+      clearUserData();
       queryClient.setQueryData(['me'], null);
     }
-  }, [queryClient]);
+  }, [queryClient, clearUserData]);
 
   const value = useMemo<AuthState>(
     () => ({

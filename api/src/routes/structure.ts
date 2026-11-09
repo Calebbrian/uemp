@@ -140,7 +140,6 @@ structureRouter.post('/departments', managers, async (req, res) => {
       action: 'DEPARTMENT_CREATED',
       entityType: 'Department',
       entityId: created.id,
-      departmentId: created.id,
       summary: `Department ${created.name} (${created.code}) created`,
       ip: clientIp(req),
     });
@@ -158,7 +157,6 @@ structureRouter.patch('/departments/:id', managers, async (req, res) => {
       action: 'DEPARTMENT_UPDATED',
       entityType: 'Department',
       entityId: updated.id,
-      departmentId: updated.id,
       summary: `Department ${updated.name} updated`,
       metadata: { changes: body },
       ip: clientIp(req),

@@ -121,10 +121,7 @@ const fields = z.object({
   lastName: personName,
   email,
   phone: optionalText(30),
-  staffId: z
-    .string()
-    .trim()
-    .toUpperCase()
+  staffId: z.string().trim().min(1, 'Required').toUpperCase()
     .regex(/^[A-Z0-9/-]{3,20}$/, 'Use letters, numbers and / only, e.g. STF/CSC/004'),
   rank: optionalText(60),
   departmentId: id.optional(),

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, type Options } from 'express-rate-limit';
 import { z } from 'zod';
 import { config } from '../config';
 import { prisma } from '../db';
@@ -14,9 +14,8 @@ import { currentUser, requireAuth } from '../middleware/auth';
 
 export const authRouter = Router();
 
-const loginLimiter = rateLimit({
+const tooManyAttempts: Partial<Options> = {
   windowMs: 15 * 60 * 1000,
-  limit: 10,
   skipSuccessfulRequests: true,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
@@ -25,7 +24,18 @@ const loginLimiter = rateLimit({
       error: { code: 'RATE_LIMITED', message: 'Too many sign-in attempts. Try again in a few minutes.' },
     });
   },
-});
+};
+
+// Failed sign-ins are limited per account and, more loosely, per network, so one
+// person's typos on a shared connection do not lock everyone else out.
+const loginLimiters = [
+  rateLimit({
+    ...tooManyAttempts,
+    limit: 10,
+    keyGenerator: (req) => `${ipKeyGenerator(req.ip ?? '')}:${String(req.body?.email ?? '').trim().toLowerCase()}`,
+  }),
+  rateLimit({ ...tooManyAttempts, limit: 100 }),
+];
 
 export async function loadProfile(userId: string) {
   const user = await prisma.user.findUnique({
@@ -75,7 +85,7 @@ export async function loadProfile(userId: string) {
   };
 }
 
-authRouter.post('/login', loginLimiter, async (req, res) => {
+authRouter.post('/login', ...loginLimiters, async (req, res) => {
   const body = parse(z.object({ email, password: z.string().min(1, 'Enter your password').max(200) }), req.body);
   const ip = clientIp(req);
   const user = await prisma.user.findUnique({ where: { email: body.email } });

@@ -124,7 +124,7 @@ const createSchema = z.discriminatedUnion('role', [
     role: z.literal('LECTURER'),
     ...base,
     departmentId: id,
-    staffId: z.string().trim().toUpperCase().regex(/^[A-Z0-9/-]{3,20}$/, 'Use letters, numbers and / only'),
+    staffId: z.string().trim().min(1, 'Required').toUpperCase().regex(/^[A-Z0-9/-]{3,20}$/, 'Use letters, numbers and / only'),
     rank: optionalText(60),
   }),
   z.object({ role: z.literal('DEPT_ADMIN'), ...base, departmentId: id }),
@@ -240,7 +240,7 @@ usersRouter.post('/:id/status', async (req, res) => {
 usersRouter.post('/:id/role', async (req, res) => {
   const actor = currentUser(req);
   const body = parse(
-    z.object({ role: z.enum(['LECTURER', 'DEPT_ADMIN', 'SUPER_ADMIN']), departmentId: id.optional(), staffId: z.string().trim().toUpperCase().optional() }),
+    z.object({ role: z.enum(['LECTURER', 'DEPT_ADMIN', 'SUPER_ADMIN']), departmentId: id.optional(), staffId: z.string().trim().min(1, 'Required').toUpperCase().optional() }),
     req.body,
   );
   const target = await prisma.user.findUnique({ where: { id: String(req.params.id) }, include: { lecturer: true } });

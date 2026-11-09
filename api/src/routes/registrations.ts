@@ -55,7 +55,7 @@ registrationsRouter.get('/', async (req, res) => {
     ...(dept ? { OR: [{ student: { user: { departmentId: dept } } }, { offering: { course: { departmentId: dept } } }] } : {}),
   };
   const include = {
-    student: { include: { user: true, program: true } },
+    student: { include: { user: { include: { department: true } }, program: true } },
     offering: { include: { course: true } },
   } satisfies Prisma.EnrollmentInclude;
   const orderBy: Prisma.EnrollmentOrderByWithRelationInput[] = [
@@ -69,6 +69,7 @@ registrationsRouter.get('/', async (req, res) => {
     studentId: e.studentId,
     studentName: fullName(e.student.user),
     program: programLabel(e.student.program),
+    department: e.student.user.department?.code ?? null,
     level: e.student.level,
     offeringId: e.offeringId,
     courseCode: e.offering.course.code,
@@ -82,8 +83,8 @@ registrationsRouter.get('/', async (req, res) => {
     sendCsv(
       res,
       `registrations-${semester.session.name.replace('/', '-')}-${semester.term.toLowerCase()}.csv`,
-      ['Matric no.', 'Student', 'Programme', 'Level', 'Course', 'Title', 'Units', 'Registered'],
-      rows.map(format).map((r) => [r.matricNo, r.studentName, r.program, r.level, r.courseCode, r.courseTitle, r.units, r.registeredAt.toISOString()]),
+      ['Matric no.', 'Student', 'Department', 'Programme', 'Level', 'Course', 'Title', 'Units', 'Registered'],
+      rows.map(format).map((r) => [r.matricNo, r.studentName, r.department, r.program, r.level, r.courseCode, r.courseTitle, r.units, r.registeredAt.toISOString()]),
     );
     return;
   }

@@ -56,6 +56,16 @@ describe('authentication', () => {
     await admin.post(`/api/users/${target.id}/status`, { status: 'ACTIVE' });
   });
 
+  it('rate-limits failed sign-ins per account without locking out others on the same network', async () => {
+    const attempt = (email: string, password = 'wrong-password') =>
+      request(app).post('/api/auth/login').set(ajax).send({ email, password });
+    for (let i = 0; i < 10; i++) expect((await attempt('locked.out@uemp.test')).status).toBe(401);
+    const blocked = await attempt('locked.out@uemp.test');
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error.code).toBe('RATE_LIMITED');
+    expect((await attempt(ACCOUNTS.cscAdmin, 'Password@123')).status).toBe(200);
+  });
+
   it('stores only a hash of the session token', async () => {
     const res = await request(app).post('/api/auth/login').set(ajax).send({ email: ACCOUNTS.cscAdmin, password: 'Password@123' });
     const token = /uemp_session=([^;]+)/.exec(res.headers['set-cookie'][0])![1];

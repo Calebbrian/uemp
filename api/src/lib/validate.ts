@@ -22,13 +22,13 @@ export const email = z
   .toLowerCase()
   .pipe(z.email('Enter a valid email address'));
 
-export const personName = z.string().trim().min(1, 'Required').max(60);
+export const personName = z.string().trim().min(1, 'Required').max(60, 'Use 60 characters or fewer');
 
 export const optionalText = (max = 200) =>
   z
     .string()
     .trim()
-    .max(max)
+    .max(max, `Use ${max} characters or fewer`)
     .optional()
     .nullable()
     .transform((v) => (v ? v : null));

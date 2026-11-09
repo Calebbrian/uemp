@@ -63,7 +63,11 @@ dashboardRouter.get('/department', requirePermission('students.manage'), async (
 
   const registrations = semester
     ? await prisma.enrollment.count({
-        where: { offering: { semesterId: semester.id }, student: { user: { departmentId: dept } } },
+        where: {
+          offering: { semesterId: semester.id },
+          // Same scope as the Registrations page: own students plus anyone taking the department's courses.
+          ...(dept ? { OR: [{ student: { user: { departmentId: dept } } }, { offering: { course: { departmentId: dept } } }] } : {}),
+        },
       })
     : 0;
 

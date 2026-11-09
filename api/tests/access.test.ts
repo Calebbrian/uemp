@@ -42,6 +42,13 @@ describe('role-based access to endpoints', () => {
     }
   });
 
+  it('lets the super admin delete a department that has never been used', async () => {
+    const faculty = await prisma.faculty.findUniqueOrThrow({ where: { code: 'SCI' } });
+    const created = await superAdmin.post('/api/departments', { name: 'Physics', code: 'PHY', facultyId: faculty.id });
+    expect(created.status).toBe(201);
+    expect((await superAdmin.delete(`/api/departments/${created.body.department.id}`)).status).toBe(200);
+  });
+
   it('only lets the super admin manage faculties', async () => {
     const body = { name: 'Faculty of Arts', code: 'ART' };
     expect((await cscAdmin.post('/api/faculties', body)).status).toBe(403);

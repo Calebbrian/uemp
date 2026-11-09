@@ -26,6 +26,14 @@ function requireAjaxHeader(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  email: 'email',
+  matricNo: 'matric number',
+  staffId: 'staff ID',
+  code: 'code',
+  name: 'name',
+};
+
 function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof HttpError) {
     res.status(err.status).json({ error: { code: err.code, message: err.message, details: err.details } });
@@ -33,9 +41,10 @@ function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFun
   }
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
-      const target = (err.meta?.target as string[] | undefined)?.join(', ');
+      const target = (err.meta?.target as string[] | undefined) ?? [];
+      const label = target.filter((f) => f !== 'departmentId').map((f) => FIELD_LABELS[f] ?? f).join(' and ') || 'value';
       res.status(409).json({
-        error: { code: 'DUPLICATE', message: `A record with this ${target ?? 'value'} already exists.`, details: { target } },
+        error: { code: 'DUPLICATE', message: `A record with this ${label} already exists.`, details: { target: target.join(', ') } },
       });
       return;
     }

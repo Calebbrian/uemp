@@ -1,0 +1,342 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  LECTURER
+  DEPT_ADMIN
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum SemesterTerm {
+  FIRST
+  SECOND
+}
+
+enum ResultStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+/// Every account, whatever the role. Students, lecturers and department admins
+/// belong to exactly one department; super admins have none.
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  title        String?
+  firstName    String
+  lastName     String
+  phone        String?
+  role         Role
+  status       AccountStatus @default(ACTIVE)
+  departmentId String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  department      Department?   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  student         Student?
+  lecturer        Lecturer?
+  authSessions    AuthSession[]
+  auditLogs       AuditLog[]
+  submittedSheets ResultSheet[] @relation("SheetSubmittedBy")
+  reviewedSheets  ResultSheet[] @relation("SheetReviewedBy")
+  updatedResults  Result[]
+
+  @@index([role])
+  @@index([departmentId])
+}
+
+model Student {
+  userId      String    @id
+  matricNo    String    @unique
+  programId   String
+  level       Int
+  entryYear   Int
+  gender      String?
+  dateOfBirth DateTime? @db.Date
+  address     String?
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program     Program      @relation(fields: [programId], references: [id], onDelete: Restrict)
+  enrollments Enrollment[]
+
+  @@index([programId, level])
+}
+
+model Lecturer {
+  userId  String  @id
+  staffId String  @unique
+  rank    String?
+
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allocations CourseAllocation[]
+}
+
+// ---------------------------------------------------------------------------
+// Academic structure
+// ---------------------------------------------------------------------------
+
+model Faculty {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  departments Department[]
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  facultyId String
+  name      String   @unique
+  code      String   @unique
+  createdAt DateTime @default(now())
+
+  faculty   Faculty    @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  programs  Program[]
+  courses   Course[]
+  users     User[]
+  auditLogs AuditLog[]
+}
+
+model Program {
+  id            String   @id @default(cuid())
+  departmentId  String
+  name          String
+  code          String   @unique
+  award         String
+  durationYears Int
+  createdAt     DateTime @default(now())
+
+  department Department      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  students   Student[]
+  curriculum ProgramCourse[]
+
+  @@unique([departmentId, name])
+}
+
+/// A course owned by a department. `level` and `term` place it in the
+/// curriculum (e.g. 200 level, first semester).
+model Course {
+  id           String       @id @default(cuid())
+  departmentId String
+  code         String       @unique
+  title        String
+  units        Int
+  level        Int
+  term         SemesterTerm
+  description  String?
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+
+  department Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  programs   ProgramCourse[]
+  offerings  CourseOffering[]
+
+  @@index([departmentId, level, term])
+}
+
+/// Which programs a course is part of. A course can serve programs outside its
+/// own department (e.g. MTH 201 is taken by Computer Science students).
+model ProgramCourse {
+  programId String
+  courseId  String
+  isCore    Boolean @default(true)
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([programId, courseId])
+  @@index([courseId])
+}
+
+model AcademicSession {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  semesters Semester[]
+}
+
+/// Only one semester is current at a time (enforced in the service layer).
+model Semester {
+  id               String       @id @default(cuid())
+  sessionId        String
+  term             SemesterTerm
+  isCurrent        Boolean      @default(false)
+  registrationOpen Boolean      @default(false)
+
+  session   AcademicSession  @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  offerings CourseOffering[]
+
+  @@unique([sessionId, term])
+}
+
+// ---------------------------------------------------------------------------
+// Teaching and registration
+// ---------------------------------------------------------------------------
+
+/// A course running in a specific semester. Registrations, lecturer
+/// allocations and the result sheet all hang off the offering.
+model CourseOffering {
+  id         String   @id @default(cuid())
+  courseId   String
+  semesterId String
+  capacity   Int?
+  createdAt  DateTime @default(now())
+
+  course      Course             @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  semester    Semester           @relation(fields: [semesterId], references: [id], onDelete: Restrict)
+  allocations CourseAllocation[]
+  enrollments Enrollment[]
+  resultSheet ResultSheet?
+
+  @@unique([courseId, semesterId])
+  @@index([semesterId])
+}
+
+model CourseAllocation {
+  offeringId String
+  lecturerId String
+  assignedAt DateTime @default(now())
+
+  offering CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  lecturer Lecturer       @relation(fields: [lecturerId], references: [userId], onDelete: Cascade)
+
+  @@id([offeringId, lecturerId])
+  @@index([lecturerId])
+}
+
+/// A student's registration for one course offering. The unique constraint is
+/// what stops a student registering the same course twice in a semester.
+/// `units` is copied from the course at registration time so later edits to
+/// the course do not change historical GPAs.
+model Enrollment {
+  id         String   @id @default(cuid())
+  studentId  String
+  offeringId String
+  units      Int
+  createdAt  DateTime @default(now())
+
+  student  Student        @relation(fields: [studentId], references: [userId], onDelete: Restrict)
+  offering CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  result   Result?
+
+  @@unique([studentId, offeringId])
+  @@index([offeringId])
+}
+
+// ---------------------------------------------------------------------------
+// Results
+// ---------------------------------------------------------------------------
+
+/// One sheet per course offering. Its status drives the approval workflow:
+/// DRAFT -> SUBMITTED -> APPROVED, or SUBMITTED -> REJECTED -> SUBMITTED.
+model ResultSheet {
+  id            String       @id @default(cuid())
+  offeringId    String       @unique
+  status        ResultStatus @default(DRAFT)
+  submittedById String?
+  submittedAt   DateTime?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewComment String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  offering    CourseOffering @relation(fields: [offeringId], references: [id], onDelete: Restrict)
+  submittedBy User?          @relation("SheetSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy  User?          @relation("SheetReviewedBy", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@index([status])
+}
+
+/// Scores for one enrollment. Grade and grade point are stored at the time of
+/// entry so a later change to the grading scale does not rewrite history.
+model Result {
+  enrollmentId String   @id
+  caScore      Int?
+  examScore    Int?
+  totalScore   Int?
+  grade        String?
+  gradePoint   Float?
+  updatedById  String
+  updatedAt    DateTime @updatedAt
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Restrict)
+  updatedBy  User       @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+}
+
+model GradeBand {
+  id       String @id @default(cuid())
+  grade    String @unique
+  minScore Int
+  maxScore Int
+  point    Float
+  remark   String
+}
+
+// ---------------------------------------------------------------------------
+// Security
+// ---------------------------------------------------------------------------
+
+/// Server-side login sessions. `id` is the SHA-256 hash of the cookie token, so
+/// a leaked database row cannot be replayed as a cookie.
+model AuthSession {
+  id         String   @id
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Append-only. A database trigger rejects UPDATE and DELETE on this table.
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  actorRole    Role?
+  action       String
+  entityType   String
+  entityId     String?
+  departmentId String?
+  summary      String
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  actor      User?       @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId])
+  @@index([departmentId, createdAt])
+  @@index([createdAt])
+}

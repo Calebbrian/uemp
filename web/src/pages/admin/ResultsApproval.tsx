@@ -137,7 +137,11 @@ export function ResultsApprovalPage() {
           { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
           {
             key: 'action',
-            header: <span className="sr-only">Action</span>,
+            header: (
+        <span className="relative">
+          <span className="sr-only">Action</span>
+        </span>
+      ),
             align: 'right',
             render: (r) => (
               <span onClick={(e) => e.stopPropagation()}>

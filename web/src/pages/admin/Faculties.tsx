@@ -26,6 +26,11 @@ function FacultyDrawer({ faculty, open, onClose }: { faculty: Faculty | null; op
       onClose();
     },
     onError: (err) => {
+      const field = err instanceof ApiError && err.code === 'DUPLICATE' ? String(err.details?.target ?? '') : '';
+      if (field === 'name' || field === 'code') {
+        form.setErrors({ [field]: `Another faculty already uses this ${field}` });
+        return;
+      }
       if (!form.applyError(err)) toast.error('Couldn’t save faculty', errorMessage(err));
     },
   });
@@ -58,6 +63,7 @@ export function FacultiesPage() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Faculty | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerKey, setDrawerKey] = useState(0);
   const [deleting, setDeleting] = useState<Faculty | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -79,6 +85,7 @@ export function FacultiesPage() {
 
   const openDrawer = (f: Faculty | null) => {
     setEditing(f);
+    setDrawerKey((k) => k + 1);
     setDrawerOpen(true);
   };
 
@@ -143,7 +150,7 @@ export function FacultiesPage() {
           )
         }
       />
-      <FacultyDrawer key={editing?.id ?? 'new'} faculty={editing} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <FacultyDrawer key={drawerKey} faculty={editing} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}

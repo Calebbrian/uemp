@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ellipsis, Eye, KeyRound, Pencil, Plus, Search, Users, type LucideIcon } from 'lucide-react';
-import { api, errorMessage } from '../../lib/api';
+import { api, ApiError, errorMessage } from '../../lib/api';
 import { levelLabel } from '../../lib/format';
 import type { AccountStatus, DeptRef, Paged } from '../../lib/types';
 import { CsvButton, DepartmentFilter, LEVELS, useAdminScope, useOptions } from '../../components/shared';
@@ -30,6 +30,16 @@ export type StudentRow = {
   program: { id: string; code: string; name: string };
   department: DeptRef | null;
 };
+
+/** Shows a unique-constraint conflict (409 DUPLICATE) under the field it belongs to. */
+export function applyDuplicateError(err: unknown, setErrors: (errors: Record<string, string>) => void, labels: Record<string, string>) {
+  if (!(err instanceof ApiError) || err.code !== 'DUPLICATE') return false;
+  const target = String((err.details as { target?: string } | undefined)?.target ?? '').split(', ');
+  const field = Object.keys(labels).find((f) => target.includes(f));
+  if (!field) return false;
+  setErrors({ [field]: `${labels[field]} is already in use` });
+  return true;
+}
 
 export function useDebounced<T>(value: T, delay = 300) {
   const [debounced, setDebounced] = useState(value);
@@ -62,16 +72,21 @@ export function RowMenu({ label, actions }: { label: string; actions: RowAction[
         button.current?.focus();
       }
     };
-    const onScroll = () => setPos(null);
+    // Close only if the button actually moved, so a scroll that was already in flight when the menu opened is ignored.
+    const openedAt = button.current?.getBoundingClientRect().top ?? 0;
+    const onScroll = () => {
+      if (Math.abs((button.current?.getBoundingClientRect().top ?? 0) - openedAt) > 2) setPos(null);
+    };
+    const onResize = () => setPos(null);
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
     window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onResize);
     return () => {
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
       window.removeEventListener('scroll', onScroll, true);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onResize);
     };
   }, [pos]);
 
@@ -163,6 +178,10 @@ export function StudentFormDrawer({
   const deptCode = (id: string) => options.data?.departments.find((d) => d.id === id)?.code;
   const program = programs.find((p) => p.id === form.values.programId);
   const maxLevel = (program?.durationYears ?? 6) * 100;
+  const { setValues } = form;
+  useEffect(() => {
+    setValues((v) => (Number(v.level) > maxLevel ? { ...v, level: String(maxLevel) } : v));
+  }, [maxLevel, setValues]);
 
   const save = useMutation({
     mutationFn: () => {
@@ -186,6 +205,7 @@ export function StudentFormDrawer({
       queryClient.invalidateQueries({ queryKey: ['students'] });
       queryClient.invalidateQueries({ queryKey: ['student'] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       if (student) {
         toast.success('Student updated', `${data.student.name} · ${data.student.matricNo}`);
         onClose();
@@ -194,7 +214,8 @@ export function StudentFormDrawer({
       }
     },
     onError: (err) => {
-      if (!form.applyError(err)) toast.error(student ? 'Couldn’t update student' : 'Couldn’t create student', errorMessage(err));
+      if (form.applyError(err) || applyDuplicateError(err, form.setErrors, { email: 'This email', matricNo: 'This matric number' })) return;
+      toast.error(student ? 'Couldn’t update student' : 'Couldn’t create student', errorMessage(err));
     },
   });
 
@@ -348,7 +369,11 @@ export function StudentsPage() {
     { key: 'status', header: 'Status', render: (s) => <StatusBadge status={s.status} /> },
     {
       key: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: (
+        <span className="relative">
+          <span className="sr-only">Actions</span>
+        </span>
+      ),
       align: 'right',
       render: (s) => (
         <RowMenu

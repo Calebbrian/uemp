@@ -66,7 +66,7 @@ export function LecturerDetailPage() {
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
         <SectionCard title="Profile">
           <DescriptionList
             items={[
@@ -97,7 +97,7 @@ export function LecturerDetailPage() {
                   </h3>
                   <span className="num text-[13px] text-muted">{plural(a.courses.length, 'course')}</span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="relative overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr>

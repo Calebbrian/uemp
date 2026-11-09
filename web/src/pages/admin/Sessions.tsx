@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, ChevronRight, Pencil, Plus } from 'lucide-react';
-import { api, errorMessage } from '../../lib/api';
+import { api, ApiError, errorMessage } from '../../lib/api';
 import { formatDate, plural } from '../../lib/format';
 import type { Term } from '../../lib/types';
 import { Badge, Button, Card, cx, EmptyState, PageHeader, Skeleton } from '../../components/ui/primitives';
@@ -60,12 +60,14 @@ function SessionDrawer({
     mutationFn: () => (session ? api.patch(`/sessions/${session.id}`, form.values) : api.post('/sessions', form.values)),
     onSuccess: () => {
       toast.success(session ? 'Session updated' : 'Session created', session ? form.values.name : `${form.values.name} with first and second semesters`);
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      queryClient.invalidateQueries({ queryKey: ['semesters'] });
-      queryClient.invalidateQueries({ queryKey: ['current-semester'] });
+      queryClient.invalidateQueries();
       onClose();
     },
     onError: (err) => {
+      if (err instanceof ApiError && err.code === 'DUPLICATE') {
+        form.setErrors({ name: `${form.values.name} already exists` });
+        return;
+      }
       if (!form.applyError(err)) toast.error('Couldn’t save session', errorMessage(err));
     },
   });
@@ -134,6 +136,7 @@ export function SessionsPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<AcademicSession | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerKey, setDrawerKey] = useState(0);
   const [makeCurrent, setMakeCurrent] = useState<{ semester: SessionSemester; session: AcademicSession } | null>(null);
 
   const query = useQuery({
@@ -141,11 +144,8 @@ export function SessionsPage() {
     queryFn: () => api.get<{ items: AcademicSession[] }>('/sessions'),
   });
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['sessions'] });
-    queryClient.invalidateQueries({ queryKey: ['semesters'] });
-    queryClient.invalidateQueries({ queryKey: ['current-semester'] });
-  };
+  // The current semester feeds almost every page, so refresh everything.
+  const invalidate = () => queryClient.invalidateQueries();
 
   const setCurrent = useMutation({
     mutationFn: (semesterId: string) => api.post(`/sessions/semesters/${semesterId}/current`),
@@ -170,6 +170,7 @@ export function SessionsPage() {
 
   const openDrawer = (s: AcademicSession | null) => {
     setEditing(s);
+    setDrawerKey((k) => k + 1);
     setDrawerOpen(true);
   };
 
@@ -307,7 +308,7 @@ export function SessionsPage() {
       </div>
 
       <SessionDrawer
-        key={editing?.id ?? 'new'}
+        key={drawerKey}
         session={editing}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}

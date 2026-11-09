@@ -82,7 +82,7 @@ export function StudentDetailPage() {
         <StatCard label="This semester" icon={ClipboardCheck} value={current?.courses.length ?? 0} sub={current ? `${current.units} units registered` : 'Not registered'} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
         <SectionCard title="Profile">
           <DescriptionList
             items={[
@@ -117,7 +117,7 @@ export function StudentDetailPage() {
                       {plural(r.courses.length, 'course')} · {r.units} units
                     </span>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="relative overflow-x-auto">
                     <table className="w-full border-collapse text-sm">
                       <thead>
                         <tr>
@@ -161,7 +161,7 @@ export function StudentDetailPage() {
                 <h3 className="m-0 text-[15px] font-semibold">{s.semester.label}</h3>
                 {s.pending > 0 && <span className="text-[13px] text-sub-fg">{plural(s.pending, 'course')} awaiting approval</span>}
               </div>
-              <div className="overflow-x-auto">
+              <div className="relative overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <thead>
                     <tr>

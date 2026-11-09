@@ -10,7 +10,7 @@ import { SearchInput, SelectField, TextField, useForm } from '../../components/u
 import { ConfirmDialog, Drawer } from '../../components/ui/overlay';
 import { DataTable, type Column } from '../../components/ui/table';
 import { useToast } from '../../components/ui/toast';
-import { RowMenu } from './Students';
+import { applyDuplicateError, RowMenu } from './Students';
 
 export type ProgrammeRow = {
   id: string;
@@ -59,7 +59,8 @@ export function ProgrammeFormDrawer({ programme, onClose }: { programme: Program
       onClose();
     },
     onError: (err) => {
-      if (!form.applyError(err)) toast.error(programme ? 'Couldn’t update programme' : 'Couldn’t create programme', errorMessage(err));
+      if (form.applyError(err) || applyDuplicateError(err, form.setErrors, { code: 'This programme code', name: 'This programme name' })) return;
+      toast.error(programme ? 'Couldn’t update programme' : 'Couldn’t create programme', errorMessage(err));
     },
   });
 
@@ -169,7 +170,11 @@ export function ProgrammesPage() {
     { key: 'students', header: 'Students', align: 'right', render: (p) => <span className="num">{p.students}</span>, sortValue: (p) => p.students },
     {
       key: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: (
+        <span className="relative">
+          <span className="sr-only">Actions</span>
+        </span>
+      ),
       align: 'right',
       render: (p) => (
         <RowMenu

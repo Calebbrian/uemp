@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChartColumn, ClipboardList, Users } from 'lucide-react';
 import { Link } from 'react-router';
@@ -63,9 +63,10 @@ function Summary({ children }: { children: React.ReactNode }) {
 }
 
 function StudentReport({ departmentId }: { departmentId: string }) {
-  const { base } = useAdminScope();
+  const { base, isSuper } = useAdminScope();
   const options = useOptions();
   const [programId, setProgramId] = useState('');
+  useEffect(() => setProgramId(''), [departmentId]);
   const [level, setLevel] = useState('');
   const [status, setStatus] = useState('ACTIVE');
   const filters = { departmentId, programId, level, status };
@@ -85,11 +86,14 @@ function StudentReport({ departmentId }: { departmentId: string }) {
       sortValue: (s) => s.matricNo,
       render: (s) => <Link to={`${base}/students/${s.id}`}>{s.matricNo}</Link>,
     },
-    { key: 'name', header: 'Name', sortValue: (s) => s.name, render: (s) => s.name },
-    { key: 'program', header: 'Programme', sortValue: (s) => s.program.name, render: (s) => s.program.name },
+    { key: 'name', header: 'Name', className: 'whitespace-normal! min-w-[140px]', sortValue: (s) => s.name, render: (s) => s.name },
+    ...(isSuper
+      ? [{ key: 'dept', header: 'Department', sortValue: (s: StudentRow) => s.department?.code ?? '', render: (s: StudentRow) => s.department?.code ?? '—' }]
+      : []),
+    { key: 'program', header: 'Programme', className: 'whitespace-normal! min-w-[160px]', sortValue: (s) => s.program.name, render: (s) => s.program.name },
     { key: 'level', header: 'Level', className: 'num', sortValue: (s) => s.level, render: (s) => s.level },
     { key: 'entry', header: 'Entry year', className: 'num', sortValue: (s) => s.entryYear, render: (s) => s.entryYear },
-    { key: 'email', header: 'Email', className: 'text-muted', render: (s) => s.email },
+    { key: 'email', header: 'Email', headerClassName: 'hidden 2xl:table-cell', className: 'hidden text-muted 2xl:table-cell', render: (s) => s.email },
     { key: 'status', header: 'Status', render: (s) => <StatusBadge status={s.status} /> },
   ];
 
@@ -147,11 +151,11 @@ function RegistrationReport({ departmentId }: { departmentId: string }) {
 
   const columns: Column<RegistrationRow>[] = [
     { key: 'code', header: 'Course', className: 'font-semibold', sortValue: (r) => r.code, render: (r) => r.code },
-    { key: 'title', header: 'Title', sortValue: (r) => r.title, render: (r) => r.title },
+    { key: 'title', header: 'Title', className: 'whitespace-normal! min-w-[180px]', sortValue: (r) => r.title, render: (r) => r.title },
     { key: 'units', header: 'Units', align: 'right', className: 'num', render: (r) => r.units },
     { key: 'level', header: 'Level', align: 'right', className: 'num', sortValue: (r) => r.level, render: (r) => r.level },
     { key: 'dept', header: 'Department', render: (r) => r.department },
-    { key: 'lecturers', header: 'Lecturers', render: (r) => (r.lecturers.length ? r.lecturers.join(', ') : <span className="text-muted">Not assigned</span>) },
+    { key: 'lecturers', header: 'Lecturers', className: 'whitespace-normal! min-w-[150px]', render: (r) => (r.lecturers.length ? r.lecturers.join(', ') : <span className="text-muted">Not assigned</span>) },
     {
       key: 'registered',
       header: 'Registered',
@@ -214,7 +218,15 @@ function PerformanceReport({ departmentId }: { departmentId: string }) {
 
   const columns: Column<CourseRow>[] = [
     { key: 'code', header: 'Course', className: 'font-semibold', sortValue: (c) => c.code, render: (c) => c.code },
-    { key: 'title', header: 'Title', className: 'max-w-[240px] truncate', render: (c) => <span title={c.title}>{c.title}</span> },
+    {
+      key: 'title',
+      header: 'Title',
+      render: (c) => (
+        <span title={c.title} className="block max-w-[220px] truncate">
+          {c.title}
+        </span>
+      ),
+    },
     { key: 'status', header: 'Results', render: (c) => <StatusBadge status={c.status} /> },
     { key: 'students', header: 'Students', align: 'right', className: 'num', render: (c) => (c.graded === c.students ? c.students : `${c.graded} / ${c.students}`) },
     { key: 'average', header: 'Average', align: 'right', className: 'num', sortValue: (c) => c.average, render: (c) => c.average?.toFixed(1) ?? '—' },

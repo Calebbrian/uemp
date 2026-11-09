@@ -215,7 +215,7 @@ export function ProgrammeDetailPage() {
       {levels.map((level) => (
         <section key={level} className="flex flex-col gap-3">
           <h2 className="m-0 text-lg font-semibold">{levelLabel(level)}</h2>
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {TERMS.map(({ term, label }) => {
               const courses = curriculum.filter((c) => c.level === level && c.term === term);
               const units = courses.reduce((sum, c) => sum + c.units, 0);
@@ -230,7 +230,7 @@ export function ProgrammeDetailPage() {
                   {courses.length === 0 ? (
                     <EmptyState icon={BookOpen} tone="muted" message="No courses yet." />
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div className="relative overflow-x-auto">
                       <table className="w-full border-collapse text-sm">
                         <thead>
                           <tr>
@@ -250,7 +250,7 @@ export function ProgrammeDetailPage() {
                                 {c.code}
                                 {c.department !== program.department.code && <span className="ml-1.5 text-xs font-normal text-muted">({c.department})</span>}
                               </td>
-                              <td className={td}>
+                              <td className={`${td} min-w-[150px] whitespace-normal!`}>
                                 {c.title}
                                 {!c.isActive && (
                                   <span className="ml-2 align-middle">

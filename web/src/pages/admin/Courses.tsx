@@ -10,7 +10,7 @@ import { Checkbox, FilterSelect, SearchInput, SelectField, TextAreaField, TextFi
 import { ConfirmDialog, Drawer } from '../../components/ui/overlay';
 import { DataTable, Pagination, type Column } from '../../components/ui/table';
 import { useToast } from '../../components/ui/toast';
-import { RowMenu, useDebounced } from './Students';
+import { applyDuplicateError, RowMenu, useDebounced } from './Students';
 
 type CourseRow = {
   id: string;
@@ -57,16 +57,20 @@ function CourseFormDrawer({ course, onClose }: { course: CourseRow | null; onClo
         isActive,
         ...(isSuper ? { departmentId: v.departmentId || undefined } : {}),
       };
-      return course ? api.patch(`/courses/${course.id}`, body) : api.post('/courses', body);
+      return course
+        ? api.patch<{ course: { code: string; title: string } }>(`/courses/${course.id}`, body)
+        : api.post<{ course: { code: string; title: string } }>('/courses', body);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['course-catalog'] });
-      toast.success(course ? 'Course updated' : 'Course created', `${form.values.code.toUpperCase()} · ${form.values.title}`);
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      toast.success(course ? 'Course updated' : 'Course created', `${data.course.code} · ${data.course.title}`);
       onClose();
     },
     onError: (err) => {
-      if (!form.applyError(err)) toast.error(course ? 'Couldn’t update course' : 'Couldn’t create course', errorMessage(err));
+      if (form.applyError(err) || applyDuplicateError(err, form.setErrors, { code: 'This course code' })) return;
+      toast.error(course ? 'Couldn’t update course' : 'Couldn’t create course', errorMessage(err));
     },
   });
 
@@ -166,6 +170,7 @@ export function CoursesPage() {
       setDeleting(null);
       queryClient.invalidateQueries({ queryKey: ['courses'] });
       queryClient.invalidateQueries({ queryKey: ['course-catalog'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       toast.success('Course deleted', c.code);
     },
     onError: (err) => {
@@ -203,7 +208,11 @@ export function CoursesPage() {
     { key: 'active', header: 'Status', render: (c) => <Badge tone={c.isActive ? 'ok' : 'draft'}>{c.isActive ? 'Active' : 'Inactive'}</Badge> },
     {
       key: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: (
+        <span className="relative">
+          <span className="sr-only">Actions</span>
+        </span>
+      ),
       align: 'right',
       render: (c) => (
         <RowMenu

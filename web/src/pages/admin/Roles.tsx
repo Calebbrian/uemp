@@ -50,7 +50,7 @@ export function RolesPage() {
       {query.error && <Banner kind="error" title="We couldn’t load the permission matrix.">{errorMessage(query.error)}</Banner>}
 
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <caption className="sr-only">Permissions by role</caption>
             <thead>

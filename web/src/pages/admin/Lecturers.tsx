@@ -10,7 +10,7 @@ import { FilterSelect, SearchInput, SelectField, TextField, useForm } from '../.
 import { Drawer, TempPasswordDialog } from '../../components/ui/overlay';
 import { DataTable, Pagination, type Column } from '../../components/ui/table';
 import { useToast } from '../../components/ui/toast';
-import { RowMenu, useDebounced, useResetPassword } from './Students';
+import { applyDuplicateError, RowMenu, useDebounced, useResetPassword } from './Students';
 
 export type LecturerRow = {
   id: string;
@@ -74,6 +74,7 @@ export function LecturerFormDrawer({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['lecturers'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['lecturer'] });
       queryClient.invalidateQueries({ queryKey: ['users'] });
       if (lecturer) {
@@ -84,7 +85,8 @@ export function LecturerFormDrawer({
       }
     },
     onError: (err) => {
-      if (!form.applyError(err)) toast.error(lecturer ? 'Couldn’t update lecturer' : 'Couldn’t create lecturer', errorMessage(err));
+      if (form.applyError(err) || applyDuplicateError(err, form.setErrors, { email: 'This email', staffId: 'This staff ID' })) return;
+      toast.error(lecturer ? 'Couldn’t update lecturer' : 'Couldn’t create lecturer', errorMessage(err));
     },
   });
 
@@ -198,7 +200,11 @@ export function LecturersPage() {
     { key: 'status', header: 'Status', render: (l) => <StatusBadge status={l.status} /> },
     {
       key: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: (
+        <span className="relative">
+          <span className="sr-only">Actions</span>
+        </span>
+      ),
       align: 'right',
       render: (l) => (
         <RowMenu

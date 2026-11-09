@@ -31,6 +31,8 @@ function invalidateOfferings(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['offerings'] });
   queryClient.invalidateQueries({ queryKey: ['lecturers'] });
   queryClient.invalidateQueries({ queryKey: ['results'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  queryClient.invalidateQueries({ queryKey: ['registrations'] });
 }
 
 function OfferCourseDrawer({ defaultSemesterId, onClose }: { defaultSemesterId: string; onClose: () => void }) {
@@ -324,7 +326,11 @@ export function OfferingsPage() {
     { key: 'status', header: 'Result', render: (o) => <StatusBadge status={o.status} />, sortValue: (o) => o.status },
     {
       key: 'actions',
-      header: <span className="sr-only">Actions</span>,
+      header: (
+        <span className="relative">
+          <span className="sr-only">Actions</span>
+        </span>
+      ),
       align: 'right',
       render: (o) => (
         <RowMenu

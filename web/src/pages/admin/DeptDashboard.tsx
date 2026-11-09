@@ -115,7 +115,7 @@ export function DeptDashboardPage() {
           {data && data.pending.length === 0 ? (
             <p className="m-0 px-4 py-6 text-sm text-muted">No result sheets are waiting for your approval.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="[&>th]:border-b [&>th]:border-line [&>th]:bg-subtle [&>th]:px-4 [&>th]:py-2.5 [&>th]:text-left [&>th]:text-xs [&>th]:font-semibold [&>th]:tracking-[0.04em] [&>th]:whitespace-nowrap [&>th]:text-[#555F5A] [&>th]:uppercase">

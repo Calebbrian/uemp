@@ -43,6 +43,11 @@ function DepartmentDrawer({ department, open, onClose }: { department: Departmen
       onClose();
     },
     onError: (err) => {
+      const field = err instanceof ApiError && err.code === 'DUPLICATE' ? String(err.details?.target ?? '') : '';
+      if (field === 'name' || field === 'code') {
+        form.setErrors({ [field]: `Another department already uses this ${field}` });
+        return;
+      }
       if (!form.applyError(err)) toast.error('Couldn’t save department', errorMessage(err));
     },
   });
@@ -85,6 +90,7 @@ export function DepartmentsPage() {
   const [facultyId, setFacultyId] = useState('');
   const [editing, setEditing] = useState<Department | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerKey, setDrawerKey] = useState(0);
   const [deleting, setDeleting] = useState<Department | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -107,19 +113,21 @@ export function DepartmentsPage() {
 
   const openDrawer = (d: Department | null) => {
     setEditing(d);
+    setDrawerKey((k) => k + 1);
     setDrawerOpen(true);
   };
 
   const columns: Column<Department>[] = [
     { key: 'code', header: 'Code', render: (d) => <span className="font-semibold">{d.code}</span>, sortValue: (d) => d.code },
-    { key: 'name', header: 'Name', render: (d) => d.name, sortValue: (d) => d.name },
-    { key: 'faculty', header: 'Faculty', render: (d) => d.faculty.name, sortValue: (d) => d.faculty.name },
+    { key: 'name', header: 'Name', className: 'whitespace-normal! min-w-[150px]', render: (d) => d.name, sortValue: (d) => d.name },
+    { key: 'faculty', header: 'Faculty', className: 'whitespace-normal! min-w-[150px]', render: (d) => d.faculty.name, sortValue: (d) => d.faculty.name },
     { key: 'students', header: 'Students', align: 'right', className: 'num', render: (d) => d.students, sortValue: (d) => d.students },
     { key: 'lecturers', header: 'Lecturers', align: 'right', className: 'num', render: (d) => d.lecturers, sortValue: (d) => d.lecturers },
     { key: 'courses', header: 'Courses', align: 'right', className: 'num', render: (d) => d.courses, sortValue: (d) => d.courses },
     {
       key: 'admin',
       header: 'Department admin',
+      className: 'whitespace-normal! min-w-[140px]',
       render: (d) =>
         d.admins.length ? (
           <span title={d.admins.map((a) => a.email).join(', ')}>{d.admins.map((a) => a.name).join(', ')}</span>
@@ -183,7 +191,7 @@ export function DepartmentsPage() {
           )
         }
       />
-      <DepartmentDrawer key={editing?.id ?? 'new'} department={editing} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <DepartmentDrawer key={drawerKey} department={editing} open={drawerOpen} onClose={() => setDrawerOpen(false)} />
       <ConfirmDialog
         open={!!deleting}
         onClose={() => setDeleting(null)}

@@ -127,7 +127,7 @@ export function ResultReviewPage() {
           {students.length === 0 ? (
             <p className="m-0 px-4 py-6 text-sm text-muted">No students are registered for this course.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>

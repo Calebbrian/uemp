@@ -101,7 +101,7 @@ function After({ children }: { children: ReactNode }) {
 
 function DiffTable({ rows }: { rows: { field: ReactNode; before: ReactNode; after: ReactNode }[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-line">
+    <div className="relative overflow-x-auto rounded-lg border border-line">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
@@ -151,7 +151,7 @@ function MetadataView({ entry }: { entry: AuditEntry }) {
     sections.push(
       <div key="scores" className="flex flex-col gap-2">
         <span className="text-sm font-semibold">Score changes ({changes.length})</span>
-        <div className="overflow-x-auto rounded-lg border border-line">
+        <div className="relative overflow-x-auto rounded-lg border border-line">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
@@ -223,10 +223,11 @@ function MetadataView({ entry }: { entry: AuditEntry }) {
     diffRows.push({ field: 'Grading scale', before: <Before>{bandText(meta.before)}</Before>, after: <After>{bandText(meta.after)}</After> });
   } else if (Array.isArray(meta.before) && Array.isArray(meta.after)) {
     handled.add('before').add('after');
+    const list = (items: Json[]) => (items.length ? (items.every((i) => typeof i === 'string') ? items.join(', ') : `${items.length} assigned`) : 'None');
     diffRows.push({
-      field: entry.action === 'LECTURERS_ASSIGNED' ? 'Lecturers (account IDs)' : 'Value',
-      before: <Before>{meta.before.length ? meta.before.length + ' assigned' : 'None'}</Before>,
-      after: <After>{meta.after.length ? meta.after.length + ' assigned' : 'None'}</After>,
+      field: entry.action === 'LECTURERS_ASSIGNED' ? 'Lecturers' : 'Value',
+      before: <Before>{list(meta.before)}</Before>,
+      after: <After>{list(meta.after)}</After>,
     });
   }
   if (diffRows.length) {
@@ -358,18 +359,32 @@ export function AuditLogPage() {
       header: 'Actor',
       render: (e) =>
         e.actor ? (
-          <span>
+          <span className="flex flex-col">
             <strong className="font-semibold">{e.actor.name}</strong>
-            {e.actorRole && <span className="text-[13px] text-muted"> · {ROLE_LABEL[e.actorRole]}</span>}
+            {e.actorRole && <span className="text-xs text-muted">{ROLE_LABEL[e.actorRole]}</span>}
           </span>
         ) : (
           <span className="text-muted">—</span>
         ),
     },
     { key: 'action', header: 'Action', render: (e) => <ActionChip action={e.action} label={e.label} /> },
-    { key: 'summary', header: 'Details', className: 'max-w-[420px] truncate', render: (e) => <span title={e.summary}>{e.summary}</span> },
+    {
+      key: 'summary',
+      header: 'Details',
+      render: (e) => (
+        <span title={e.summary} className="block max-w-[340px] truncate">
+          {e.summary}
+        </span>
+      ),
+    },
     { key: 'dept', header: 'Department', className: 'text-ink-2', render: (e) => e.department?.code ?? <span className="text-muted">—</span> },
-    { key: 'ip', header: 'IP', className: 'num font-mono text-[13px] text-muted', render: (e) => e.ipAddress ?? '—' },
+    {
+      key: 'ip',
+      header: 'IP',
+      headerClassName: 'hidden 2xl:table-cell',
+      className: 'num hidden font-mono text-[13px] text-muted 2xl:table-cell',
+      render: (e) => e.ipAddress ?? '—',
+    },
   ];
 
   const filtered = action || from || to || departmentId || q;
@@ -414,7 +429,7 @@ export function AuditLogPage() {
               ))}
             </FilterSelect>
             <DepartmentFilter value={departmentId} onChange={setDepartmentId} />
-            <SearchInput label="Search audit log" placeholder="Search details, e.g. CSC 201 or an email" value={search} onChange={setSearch} />
+            <SearchInput label="Search audit log" placeholder="Search details, names or emails" value={search} onChange={setSearch} />
             {filtered && (
               <Button
                 variant="ghost"
@@ -433,7 +448,7 @@ export function AuditLogPage() {
           </div>
         }
         empty={<EmptyState icon={History} tone="muted" message={filtered ? 'No entries match these filters.' : 'No activity recorded yet.'} />}
-        footer={query.data && <Pagination page={page} pageSize={query.data.pageSize} total={query.data.total} onPage={setPage} noun="entries" />}
+        footer={!!query.data?.total && <Pagination page={page} pageSize={query.data.pageSize} total={query.data.total} onPage={setPage} noun="entries" />}
       />
       <EntryDrawer entry={selected} onClose={() => setSelected(null)} />
     </>

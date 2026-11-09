@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ellipsis, Plus, Users as UsersIcon } from 'lucide-react';
-import { api, errorMessage } from '../../lib/api';
+import { api, ApiError, errorMessage } from '../../lib/api';
 import { formatDateTime, ROLE_LABEL } from '../../lib/format';
 import type { AccountStatus, Paged, Role } from '../../lib/types';
 import { Button, cx, EmptyState, PageHeader, StatusBadge } from '../../components/ui/primitives';
@@ -55,9 +56,33 @@ function useDebounced<T>(value: T, ms = 300) {
 }
 
 function invalidateUsers(queryClient: ReturnType<typeof useQueryClient>) {
-  for (const key of ['users', 'students', 'lecturers', 'departments', 'faculties']) {
+  for (const key of ['users', 'students', 'lecturers', 'departments', 'faculties', 'dashboard', 'audit-logs']) {
     queryClient.invalidateQueries({ queryKey: [key] });
   }
+}
+
+/** Ignores repeat calls while the first is still running, so a double click cannot send two requests. */
+function useSingleFlight() {
+  const busy = useRef(false);
+  return useCallback((run: () => Promise<unknown>) => {
+    if (busy.current) return;
+    busy.current = true;
+    run()
+      .catch(() => {})
+      .finally(() => {
+        busy.current = false;
+      });
+  }, []);
+}
+
+const DUPLICATE_LABELS: Record<string, string> = { email: 'email', matricNo: 'matric number', staffId: 'staff ID' };
+
+/** Turns a unique-constraint error into an inline field message. */
+function duplicateError(err: unknown, values: Record<string, unknown>): Record<string, string> | null {
+  if (!(err instanceof ApiError) || err.code !== 'DUPLICATE') return null;
+  const field = String(err.details?.target ?? '');
+  if (!(field in values) || !DUPLICATE_LABELS[field]) return null;
+  return { [field]: `Another account already uses this ${DUPLICATE_LABELS[field]}` };
 }
 
 // Row menu --------------------------------------------------------------------
@@ -191,6 +216,7 @@ function CreateUserDrawer({ open, onClose, onCreated }: { open: boolean; onClose
   const options = useOptions();
   const form = useForm(EMPTY_CREATE);
   const role = form.values.role;
+  const once = useSingleFlight();
 
   const create = useMutation({
     mutationFn: () => {
@@ -208,7 +234,9 @@ function CreateUserDrawer({ open, onClose, onCreated }: { open: boolean; onClose
       onCreated(data.user.name, data.tempPassword);
     },
     onError: (err) => {
-      if (!form.applyError(err)) toast.error('Couldn’t create user', errorMessage(err));
+      const duplicate = duplicateError(err, form.values);
+      if (duplicate) form.setErrors(duplicate);
+      else if (!form.applyError(err)) toast.error('Couldn’t create user', errorMessage(err));
     },
   });
 
@@ -226,7 +254,7 @@ function CreateUserDrawer({ open, onClose, onCreated }: { open: boolean; onClose
           form.setErrors({ role: 'Choose a role first' });
           return;
         }
-        create.mutate();
+        once(() => create.mutateAsync());
       }}
       footer={
         <>
@@ -337,6 +365,7 @@ function EditUserDrawer({ user, open, onClose }: { user: UserRow; open: boolean;
     phone: user.phone ?? '',
     departmentId: user.department?.id ?? '',
   });
+  const once = useSingleFlight();
 
   const save = useMutation({
     mutationFn: () => {
@@ -349,7 +378,9 @@ function EditUserDrawer({ user, open, onClose }: { user: UserRow; open: boolean;
       onClose();
     },
     onError: (err) => {
-      if (!form.applyError(err)) toast.error('Couldn’t update user', errorMessage(err));
+      const duplicate = duplicateError(err, form.values);
+      if (duplicate) form.setErrors(duplicate);
+      else if (!form.applyError(err)) toast.error('Couldn’t update user', errorMessage(err));
     },
   });
 
@@ -358,7 +389,7 @@ function EditUserDrawer({ user, open, onClose }: { user: UserRow; open: boolean;
       open={open}
       onClose={onClose}
       title={`Edit ${user.name}`}
-      onSubmit={() => save.mutate()}
+      onSubmit={() => once(() => save.mutateAsync())}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -405,6 +436,7 @@ function ChangeRoleDrawer({ user, open, onClose }: { user: UserRow; open: boolea
   const form = useForm({ role: choices[0] as Role, departmentId: user.department?.id ?? '', staffId: user.staffId ?? '' });
   const target = form.values.role;
   const needsStaffId = target === 'LECTURER' && !user.staffId;
+  const once = useSingleFlight();
 
   const save = useMutation({
     mutationFn: () =>
@@ -419,7 +451,9 @@ function ChangeRoleDrawer({ user, open, onClose }: { user: UserRow; open: boolea
       onClose();
     },
     onError: (err) => {
-      if (!form.applyError(err)) toast.error('Couldn’t change role', errorMessage(err));
+      const duplicate = duplicateError(err, form.values);
+      if (duplicate) form.setErrors(duplicate);
+      else if (!form.applyError(err)) toast.error('Couldn’t change role', errorMessage(err));
     },
   });
 
@@ -428,7 +462,7 @@ function ChangeRoleDrawer({ user, open, onClose }: { user: UserRow; open: boolea
       open={open}
       onClose={onClose}
       title={`Change role for ${user.name}`}
-      onSubmit={() => save.mutate()}
+      onSubmit={() => once(() => save.mutateAsync())}
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
@@ -504,12 +538,15 @@ export function UsersPage() {
   const { user: me } = useAdminScope();
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [role, setRole] = useState<Role | ''>('');
+  const [params] = useSearchParams();
+  const initialRole = params.get('role');
+  const [role, setRole] = useState<Role | ''>(ROLES.includes(initialRole as Role) ? (initialRole as Role) : '');
   const [departmentId, setDepartmentId] = useState('');
   const [status, setStatus] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const q = useDebounced(search.trim());
+  const once = useSingleFlight();
 
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<UserRow | null>(null);
@@ -577,7 +614,7 @@ export function UsersPage() {
     },
     { key: 'email', header: 'Email', className: 'text-muted', render: (u) => u.email },
     { key: 'role', header: 'Role', render: (u) => ROLE_LABEL[u.role] },
-    { key: 'department', header: 'Department', render: (u) => u.department?.name ?? <span className="text-muted">—</span> },
+    { key: 'department', header: 'Department', className: 'whitespace-normal! min-w-[130px]', render: (u) => u.department?.name ?? <span className="text-muted">—</span> },
     { key: 'status', header: 'Status', render: (u) => <StatusBadge status={u.status} /> },
     { key: 'last', header: 'Last login', className: 'num text-ink-2', render: (u) => (u.lastLoginAt ? formatDateTime(u.lastLoginAt) : <span className="text-muted">Never</span>) },
     {
@@ -602,7 +639,7 @@ export function UsersPage() {
         }
       />
 
-      <div role="tablist" aria-label="Filter by role" className="flex gap-6 overflow-x-auto border-b border-line">
+      <div role="tablist" aria-label="Filter by role" className="relative flex gap-6 overflow-x-auto border-b border-line">
         {TABS.map((t) => {
           const selected = role === t.value;
           const n = t.value ? (counts[t.value] ?? 0) : totalCount;
@@ -668,7 +705,7 @@ export function UsersPage() {
             }
           />
         }
-        footer={query.data && <Pagination page={page} pageSize={query.data.pageSize} total={query.data.total} onPage={setPage} noun="users" />}
+        footer={!!query.data?.total && <Pagination page={page} pageSize={query.data.pageSize} total={query.data.total} onPage={setPage} noun="users" />}
       />
 
       <CreateUserDrawer
@@ -683,7 +720,7 @@ export function UsersPage() {
         open={!!statusAction}
         onClose={() => setStatusAction(null)}
         onConfirm={(reason) => {
-          if (statusAction) changeStatus.mutate({ ...statusAction, reason });
+          if (statusAction) once(() => changeStatus.mutateAsync({ ...statusAction, reason }));
         }}
         title={statusAction ? `${STATUS_COPY[statusAction.status].verb} ${statusAction.user.name}?` : ''}
         message={statusAction && STATUS_COPY[statusAction.status].message(statusAction.user.name)}
@@ -697,7 +734,7 @@ export function UsersPage() {
         open={!!resetting}
         onClose={() => setResetting(null)}
         onConfirm={() => {
-          if (resetting) resetPassword.mutate(resetting);
+          if (resetting) once(() => resetPassword.mutateAsync(resetting));
         }}
         title={`Reset password for ${resetting?.name ?? 'user'}?`}
         message="A new temporary password will be generated and shown once. Their current password stops working and they are signed out everywhere."

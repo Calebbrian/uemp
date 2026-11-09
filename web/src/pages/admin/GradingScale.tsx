@@ -165,7 +165,7 @@ export function GradingScalePage() {
       {query.error && <Banner kind="error" title="We couldn’t load the grading scale.">{errorMessage(query.error)}</Banner>}
 
       <Card className="max-w-[1100px] overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <caption className="sr-only">Grade bands</caption>
             <thead>

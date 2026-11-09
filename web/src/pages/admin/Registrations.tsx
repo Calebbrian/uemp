@@ -17,6 +17,7 @@ type Registration = {
   studentId: string;
   studentName: string;
   program: string;
+  department: string | null;
   level: number;
   offeringId: string;
   courseCode: string;
@@ -54,7 +55,7 @@ function CourseRegistrants({ offeringId, semesterId }: { offeringId: string; sem
   if (list.error) return <p className="m-0 px-5 py-4 text-sm text-danger-ink">{list.error.message}</p>;
   if (list.data.items.length === 0) return <p className="m-0 px-5 py-4 text-sm text-muted">Nobody has registered for this course yet.</p>;
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
@@ -198,7 +199,8 @@ export function RegistrationsPage() {
   const columns: Column<Registration>[] = [
     { key: 'matric', header: 'Matric no.', render: (r) => <span className="num font-medium">{r.matricNo}</span>, sortValue: (r) => r.matricNo },
     { key: 'student', header: 'Student', render: (r) => r.studentName, sortValue: (r) => r.studentName },
-    { key: 'program', header: 'Programme', render: (r) => r.program },
+    ...(isSuper ? [{ key: 'dept', header: 'Department', render: (r: Registration) => r.department ?? '—', sortValue: (r: Registration) => r.department ?? '' }] : []),
+    { key: 'program', header: 'Programme', render: (r) => r.program, className: 'whitespace-normal min-w-[150px]' },
     { key: 'level', header: 'Level', render: (r) => <span className="num">{r.level}</span>, sortValue: (r) => r.level },
     {
       key: 'course',
@@ -209,6 +211,7 @@ export function RegistrationsPage() {
         </span>
       ),
       sortValue: (r) => r.courseCode,
+      className: 'whitespace-normal min-w-[200px]',
     },
     { key: 'units', header: 'Units', align: 'right', render: (r) => <span className="num">{r.units}</span> },
     { key: 'date', header: 'Registered', render: (r) => <span className="text-muted">{formatDate(r.registeredAt)}</span>, sortValue: (r) => r.registeredAt },

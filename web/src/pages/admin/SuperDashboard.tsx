@@ -39,8 +39,8 @@ export function SuperDashboardPage() {
         <StatCard label="Faculties" loading={isPending} value={s?.faculties} to="/admin/faculties" />
         <StatCard label="Departments" loading={isPending} value={s?.departments} to="/admin/departments" />
         <StatCard label="Programmes" loading={isPending} value={s?.programs} to="/admin/programmes" />
-        <StatCard label="Students" loading={isPending} value={s?.students.toLocaleString('en-GB')} to="/admin/users" />
-        <StatCard label="Lecturers" loading={isPending} value={s?.lecturers} to="/admin/users" />
+        <StatCard label="Students" loading={isPending} value={s?.students.toLocaleString('en-GB')} sub="Active accounts" to="/admin/users?role=STUDENT" />
+        <StatCard label="Lecturers" loading={isPending} value={s?.lecturers} sub="Active accounts" to="/admin/users?role=LECTURER" />
         <StatCard label="Courses" loading={isPending} value={s?.courses} to="/admin/courses" />
         <StatCard label="Registrations" loading={isPending} value={s?.registrations.toLocaleString('en-GB')} to="/admin/registrations" />
       </div>
@@ -74,7 +74,7 @@ export function SuperDashboardPage() {
               Oversight view
             </Link>
           </div>
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="[&>th]:border-b [&>th]:border-line [&>th]:bg-subtle [&>th]:px-3 [&>th]:py-2.5 [&>th]:text-xs [&>th]:font-semibold [&>th]:tracking-[0.04em] [&>th]:whitespace-nowrap [&>th]:text-[#555F5A] [&>th]:uppercase">
